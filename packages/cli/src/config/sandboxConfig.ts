@@ -27,6 +27,7 @@ const VALID_SANDBOX_COMMANDS: ReadonlyArray<SandboxConfig['command']> = [
   'docker',
   'podman',
   'sandbox-exec',
+  'appcontainer',
 ];
 
 function isSandboxCommand(value: string): value is SandboxConfig['command'] {
@@ -84,6 +85,12 @@ function getSandboxCommand(
 
   // throw an error if user requested sandbox but no command was found
   if (sandbox === true) {
+    if (os.platform() === 'win32') {
+      throw new FatalSandboxError(
+        'Native Windows sandboxing is not yet supported. ' +
+          'Set GEMINI_SANDBOX=docker or install Docker Desktop for Windows.',
+      );
+    }
     throw new FatalSandboxError(
       'GEMINI_SANDBOX is true but failed to determine command for sandbox; ' +
         'install docker or podman or specify command in GEMINI_SANDBOX',

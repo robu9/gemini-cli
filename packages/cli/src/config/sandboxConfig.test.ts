@@ -97,7 +97,7 @@ describe('loadSandboxConfig', () => {
     it('should throw if GEMINI_SANDBOX is an invalid command', async () => {
       process.env['GEMINI_SANDBOX'] = 'invalid-command';
       await expect(loadSandboxConfig({}, {})).rejects.toThrow(
-        "Invalid sandbox command 'invalid-command'. Must be one of docker, podman, sandbox-exec",
+        "Invalid sandbox command 'invalid-command'. Must be one of docker, podman, sandbox-exec, appcontainer",
       );
     });
 
@@ -157,6 +157,31 @@ describe('loadSandboxConfig', () => {
     });
   });
 
+  describe('Windows (win32) platform', () => {
+    it('should throw an actionable error on win32 when sandbox is true and no Docker/Podman', async () => {
+      mockedOsPlatform.mockReturnValue('win32');
+      mockedCommandExistsSync.mockReturnValue(false);
+      await expect(loadSandboxConfig({}, { sandbox: true })).rejects.toThrow(
+        'Native Windows sandboxing is not yet supported. ' +
+          'Set GEMINI_SANDBOX=docker or install Docker Desktop for Windows.',
+      );
+    });
+
+    it('should use docker on win32 if available and sandbox is true', async () => {
+      mockedOsPlatform.mockReturnValue('win32');
+      mockedCommandExistsSync.mockImplementation((cmd) => cmd === 'docker');
+      const config = await loadSandboxConfig({}, { sandbox: true });
+      expect(config).toEqual({ command: 'docker', image: 'default/image' });
+    });
+
+    it('should use podman on win32 if available and docker is not', async () => {
+      mockedOsPlatform.mockReturnValue('win32');
+      mockedCommandExistsSync.mockImplementation((cmd) => cmd === 'podman');
+      const config = await loadSandboxConfig({}, { sandbox: true });
+      expect(config).toEqual({ command: 'podman', image: 'default/image' });
+    });
+  });
+
   describe("with sandbox: 'command'", () => {
     it('should use the specified command if it exists', async () => {
       mockedCommandExistsSync.mockReturnValue(true);
@@ -178,7 +203,7 @@ describe('loadSandboxConfig', () => {
       await expect(
         loadSandboxConfig({}, { sandbox: 'invalid-command' }),
       ).rejects.toThrow(
-        "Invalid sandbox command 'invalid-command'. Must be one of docker, podman, sandbox-exec",
+        "Invalid sandbox command 'invalid-command'. Must be one of docker, podman, sandbox-exec, appcontainer",
       );
     });
   });
